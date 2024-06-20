@@ -3,7 +3,7 @@ export const mockupInputData= 'Legal Entity Name;text\n' +
   'Company Registration Number;text\n' +
   'Legal Entity Type;selector\n' +
   'Country of Incorporation;selector\n' +
-  'Date of Incorporation;date\n' +
+  'Date of Incorporation;datetime\n' +
   'Company Tax Identification Number;text\n' +
   'Company VAT number;text\n' +
   'Primary Contact Name;text\n' +

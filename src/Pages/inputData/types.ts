@@ -1,0 +1,1 @@
+export type InputField = { id: string, title: string | null, type: string | null }

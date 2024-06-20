@@ -1,6 +1,5 @@
-import React from "react";
+import React, {useState} from "react";
 import {Route, Routes} from "react-router-dom";
-import {Button, Typography} from "@mui/material";
 import {styled} from "@mui/system";
 import { Navbar } from "./Pages/Navbar.tsx";
 import './App.css'
@@ -11,6 +10,9 @@ import '@fontsource/roboto/700.css';
 import {ShowCase} from "./Pages/sc";
 import {Constructor} from "./Pages/constructor";
 import {InputData} from "./Pages/inputData";
+import {makeFieldsList} from "./Pages/inputData/utility.ts";
+import {mockupInputData} from "./Pages/inputData/constants.ts";
+import {InputField} from "./Pages/inputData/types.ts";
 
 const MainLayoutStyled = styled('div', {
   name: 'MainLayoutStyled',
@@ -34,6 +36,7 @@ const ContentStyled = styled('div', {
 });
 
 function App() {
+  const [fieldsList, setFieldsList] = useState<InputField[]>(makeFieldsList(mockupInputData))
 
   return (
     <>
@@ -42,8 +45,8 @@ function App() {
         <ContentStyled>
           <Routes>
             <Route path="/sc" element={<ShowCase />} />
-            <Route path="/input" element={<InputData />} />
-            <Route path="/constructor" element={<Constructor />} />
+            <Route path="/input" element={<InputData fieldsList={fieldsList} setFieldsList={setFieldsList} />} />
+            <Route path="/constructor" element={<Constructor fieldsList={fieldsList} setFieldsList={setFieldsList} />} />
           </Routes>
         </ContentStyled>
       </MainLayoutStyled>

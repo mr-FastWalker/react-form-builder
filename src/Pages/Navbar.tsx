@@ -1,19 +1,26 @@
-import React from 'react';
-import { styled } from '@mui/system';
-import {Button, Divider, Typography} from "@mui/material";
+import { styled, alpha } from '@mui/system';
+import { Button, Divider, Typography} from "@mui/material";
 import {useNavigate} from "react-router";
 
 const NavbarStyled = styled('div', {
   name: 'Navbar',
   slot: 'Root',
 })({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
   minWidth: '260px',
   backgroundColor: '#131a39',
   padding: '16px',
   minHeight: '100vh',
+  position: 'relative',
+});
+
+const NavbarContentStyled = styled('div', {
+  name: 'Navbar',
+  slot: 'content',
+})({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  position: 'fixed',
 });
 
 export const Navbar = () => {
@@ -21,11 +28,13 @@ export const Navbar = () => {
 
   return (
     <NavbarStyled>
-      <Typography color="white" variant="h6">Simple Form Builder</Typography>
-      <Divider color="white"/>
-      <Button onClick={() => navigate('/input')}>Input data</Button>
-      <Button onClick={() => navigate('/constructor')}>Constructor</Button>
-      <Button onClick={() => navigate('/sc')}>Show components</Button>
+      <NavbarContentStyled>
+        <Typography color="white" variant="h6">Simple Form Builder</Typography>
+        <Divider color="white"/>
+        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/input')}>Input data</Button>
+        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/constructor')}>Constructor</Button>
+        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/sc')}>Show components</Button>
+      </NavbarContentStyled>
     </NavbarStyled>
   )
 };
