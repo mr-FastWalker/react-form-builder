@@ -1,6 +1,7 @@
 import { styled, alpha } from '@mui/system';
 import { Button, Divider, Typography} from "@mui/material";
 import {useNavigate} from "react-router";
+import { Link } from "react-router-dom";
 
 const NavbarStyled = styled('div', {
   name: 'Navbar',
@@ -24,16 +25,16 @@ const NavbarContentStyled = styled('div', {
 });
 
 export const Navbar = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   return (
     <NavbarStyled>
       <NavbarContentStyled>
         <Typography color="white" variant="h6">Simple Form Builder</Typography>
         <Divider color="white"/>
-        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/input')}>Input data</Button>
-        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/constructor')}>Constructor</Button>
-        <Button sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} onClick={() => navigate('/sc')}>Show components</Button>
+        <Button component={Link} to={'/input'} sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} >Input data</Button>
+        <Button component={Link} to={'/constructor'} sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} >Constructor</Button>
+        <Button component={Link} to={'/sc'} sx={{'&:hover': {backgroundColor: alpha('#fff', 0.1)} }} >Show components</Button>
       </NavbarContentStyled>
     </NavbarStyled>
   )

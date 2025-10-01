@@ -1,8 +1,16 @@
 import {useDraggable} from '@dnd-kit/core';
+import {useId} from "react";
 
-export const Draggable = (props) => {
+interface DraggableProps {
+  id?: string;
+  children: React.ReactNode;
+}
+
+export const Draggable = (props: DraggableProps) => {
+  const randomId = useId();
+
   const {attributes, listeners, setNodeRef, transform} = useDraggable({
-    id: props.id,
+    id: props.id || randomId,
   });
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -10,8 +18,8 @@ export const Draggable = (props) => {
 
 
   return (
-    <button ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
       {props.children}
-    </button>
+    </div>
   );
 }

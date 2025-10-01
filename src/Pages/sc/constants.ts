@@ -11,5 +11,6 @@ export const fieldTypes = [
     'list',
     'complex',
     'datetime',
-]
-
+    'columnContainer',
+    'rowContainer',
+];

@@ -1,6 +1,6 @@
 import {fieldTypes} from "./constants.ts";
-import {Box, Typography} from "@mui/material";
-import Grid from '@mui/material/Unstable_Grid2';
+import {Box, Grid, Stack, Typography} from "@mui/material";
+// import Grid from '@mui/material/Unstable_Grid2';
 import {
   CheckBoxField,
   DescriptionField,
@@ -42,6 +42,10 @@ export const ShowCase = () => {
         return <div>complex</div>
       case 'datetime':
         return <DatePickerField />
+      case 'columnContainer':
+        return <Stack direction="column" gap={2}/>
+      case 'rowContainer':
+        return <Stack direction="row" gap={2}/>
       default:
         return <Typography color='error.main'>{`unknown type "${type}"`}</Typography>
     }
@@ -50,18 +54,18 @@ export const ShowCase = () => {
   return (
     <Box sx={{display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '1024px', margin: '0 auto'}}>
       <Typography variant='h6'>Show Case - list field types:</Typography>
-      <Grid container spacing={2}>
+      <Stack direction='column' gap="8px" data-testId='FieldsWrapper' sx={{width: '800px'}}>
         {fieldTypes.map(el =>
-          <React.Fragment key={el}>
-            <Grid xs={2}>
+          <Stack direction='row' gap={2} key={el}>
+            <Box sx={{width: '30%'}}>
               <Typography>{`field: ${el}`}</Typography>
-            </Grid>
-            <Grid xs={10}>
+            </Box>
+            <Box sx={{width: '100%'}}>
               {getFieldByType({type: el, label: el})}
-            </Grid>
-          </React.Fragment>
+            </Box>
+          </Stack>
         )}
-      </Grid>
+      </Stack>
     </Box>
   )
 };
