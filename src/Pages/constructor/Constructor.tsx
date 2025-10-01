@@ -1,5 +1,5 @@
 import { styled } from "@mui/system";
-import { DndContext, closestCenter, DragOverlay } from "@dnd-kit/core";
+import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {Box, Typography} from "@mui/material";
 import { useState } from "react";
@@ -21,16 +21,19 @@ const FormContainerStyled = styled('div', {
   padding: '16px',
   borderRadius: '12px',
   backgroundColor: '#efefef',
-  margin: '36px auto',
+  margin: '0 auto',
   minHeight: '300px',
 });
 
 export const Constructor = () => {
   const [formFields, setFormFields] = useState<FieldData[]>([]);
+  console.log('formFields', formFields);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedFieldType, setDraggedFieldType] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<FieldData | null>(null);
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+  const [lastOverId, setLastOverId] = useState<string | null>(null);
+  const [disableDropAnimation, setDisableDropAnimation] = useState<boolean>(false);
 
   const generateId = () => `node-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -53,10 +56,25 @@ export const Constructor = () => {
     // Показываем плейсхолдер только для новых элементов из списка (начинаются с 'field-')
     if (!active.id.startsWith('field-') || !over) {
       setInsertionIndex(null);
+      setLastOverId(null);
       return;
     }
 
-    // Если над главным контейнером (пустая область) - вставка в конец
+    // Если нет элементов в форме, вставляем в начало
+    if (formFields.length === 0) {
+      setInsertionIndex(0);
+      setLastOverId(over.id);
+      return;
+    }
+
+    // Стабилизация: меняем позицию только если over.id действительно изменился
+    if (over.id === lastOverId) {
+      return; // Не обновляем позицию если over тот же
+    }
+
+    setLastOverId(over.id);
+
+    // Если над главным контейнером - вставляем в конец
     if (over.id === 'form-constructor') {
       setInsertionIndex(formFields.length);
       return;
@@ -71,6 +89,7 @@ export const Constructor = () => {
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
+    let addedFromPalette = false;
 
     if (!over) {
       // If dragging existing field from form constructor and dropping outside, delete it
@@ -81,6 +100,7 @@ export const Constructor = () => {
       setDraggedFieldType(null);
       setActiveField(null);
       setInsertionIndex(null);
+      setLastOverId(null);
       return;
     }
 
@@ -98,10 +118,12 @@ export const Constructor = () => {
         if (over.id === 'form-constructor') {
           // Add to the end of the form
           setFormFields(prev => [...prev, newField]);
-        } else if (over.id.endsWith('-content')) {
+          addedFromPalette = true;
+        } else if (typeof over.id === 'string' && over.id.endsWith('-content')) {
           // Handle dropping into nested containers
           const containerId = over.id.replace('-content', '');
           setFormFields(prev => addFieldToContainer(prev, containerId, newField));
+          addedFromPalette = true;
         } else {
           // Use insertionIndex for precise positioning
           if (insertionIndex !== null) {
@@ -110,18 +132,23 @@ export const Constructor = () => {
               newFields.splice(insertionIndex, 0, newField);
               return newFields;
             });
+            addedFromPalette = true;
           } else {
             // Fallback: Handle dropping near existing fields
             const targetPath = findFieldPath(formFields, over.id);
             if (targetPath) {
               setFormFields(prev => addFieldToPath(prev, targetPath, newField));
+              addedFromPalette = true;
             }
           }
         }
       }
     } else {
-      // Handle reordering existing fields
-      if (active.id !== over.id) {
+      // Handle reordering/moving existing fields
+      if (typeof over.id === 'string' && over.id.endsWith('-content')) {
+        const containerId = over.id.replace('-content', '');
+        setFormFields(prev => moveFieldToContainer(prev, active.id, containerId));
+      } else if (active.id !== over.id) {
         // Check if it's a simple top-level reorder
         const activeIndex = formFields.findIndex(field => field.id === active.id);
         const overIndex = formFields.findIndex(field => field.id === over.id);
@@ -136,14 +163,22 @@ export const Constructor = () => {
       }
     }
 
+    if (addedFromPalette) {
+      // Disable return animation when a new element from the Fields List was successfully added
+      setDisableDropAnimation(true);
+    }
+
     setActiveId(null);
     setDraggedFieldType(null);
     setActiveField(null);
     setInsertionIndex(null);
+    setLastOverId(null);
   };
 
   const handleDragStart = (event: any) => {
     setActiveId(event.active.id);
+    // Reset drop animation control at the start of each drag
+    setDisableDropAnimation(false);
 
     if (event.active.id.startsWith('field-')) {
       // Dragging from field list
@@ -266,8 +301,46 @@ export const Constructor = () => {
     return newFields;
   };
 
+  const moveFieldToContainer = (fields: FieldData[], activeId: string, containerId: string): FieldData[] => {
+    // Remove the active field from its current location and return it
+    const removeAndGet = (nodes: FieldData[]): { updated: FieldData[]; removed: FieldData | null } => {
+      let removed: FieldData | null = null;
+      const updated = nodes
+        .map(node => {
+          if (node.id === activeId) {
+            removed = node;
+            return null as any;
+          }
+          if (node.children && node.children.length > 0) {
+            const res = removeAndGet(node.children);
+            if (res.removed) removed = res.removed;
+            return { ...node, children: res.updated };
+          }
+          return node;
+        })
+        .filter(Boolean) as FieldData[];
+      return { updated, removed };
+    };
+
+    const { updated, removed } = removeAndGet(fields);
+    if (!removed) return fields; // nothing to move
+
+    const appendToContainer = (node: FieldData): FieldData => {
+      if (node.id === containerId) {
+        const children = [...(node.children || []), removed!];
+        return { ...node, children };
+      }
+      if (node.children && node.children.length > 0) {
+        return { ...node, children: node.children.map(appendToContainer) };
+      }
+      return node;
+    };
+
+    return updated.map(appendToContainer);
+  };
+
   return (
-    <DndContext onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+    <DndContext onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
       <Box sx={{position: 'relative'}}>
         <FieldsList/>
 
@@ -277,13 +350,14 @@ export const Constructor = () => {
           <Droppable
             id='form-constructor'
             showBorder={formFields.length === 0}
+            minHeight='600px'
           >
             {formFields.length === 0 ? (
               <Box sx={{
                 textAlign: 'center',
                 color: 'text.secondary',
                 fontSize: '1.1rem',
-                padding: 4
+                padding: 4,
               }}>
                 Drag fields from the list to start building your form
               </Box>
@@ -330,7 +404,7 @@ export const Constructor = () => {
           </Droppable>
         </FormContainerStyled>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={disableDropAnimation ? null : undefined}>
           {activeId ? (
             <Box sx={{
               backgroundColor: 'white',

@@ -25,6 +25,7 @@ interface DroppableProps {
     id?: string;
     children: React.ReactNode;
     showBorder?: boolean;
+    minHeight?: string;
 }
 export const Droppable = (props: DroppableProps) => {
   const randomId = useId();
@@ -35,6 +36,7 @@ export const Droppable = (props: DroppableProps) => {
     <DroppableStyled
       isOver={isOver}
       showBorder={props.showBorder}
+      sx={{ minHeight: props.minHeight || '60px' }}
       className="droppableColumn"
       ref={setNodeRef}
     >

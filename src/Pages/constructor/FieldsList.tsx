@@ -2,7 +2,6 @@ import {styled} from "@mui/system";
 import {Box, Divider, List, ListItem, Typography} from "@mui/material";
 import {fieldTypes} from "../sc/constants.ts";
 import {Draggable} from "./Draggable.tsx";
-import { getFieldByType } from "./utils/fieldRenderer.tsx";
 
 const FieldsListWrapper = styled(Box, {
   name: 'FieldsListWrapper',
