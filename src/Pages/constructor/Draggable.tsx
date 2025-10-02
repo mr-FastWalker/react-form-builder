@@ -18,7 +18,7 @@ export const Draggable = (props: DraggableProps) => {
 
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes} data-testId="draggableItem">
       {props.children}
     </div>
   );

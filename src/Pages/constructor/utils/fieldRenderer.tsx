@@ -62,7 +62,7 @@ export const getFieldByType = (type: string, fieldData?: FieldData) => {
       return (
         <GroupField>
           {fieldData && (
-            <Droppable id={`${fieldData.id}-content`}>
+            <Droppable id={`${fieldData.id}-content`} sx={{margin: 0, padding: '16px'}}>
               {renderNestedFields(fieldData.children || [])}
             </Droppable>
           )}

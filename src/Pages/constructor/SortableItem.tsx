@@ -1,6 +1,7 @@
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import { ReactNode, CSSProperties } from 'react';
+import {Box} from "@mui/material";
 
 interface SortableItemProps {
   id: string;
@@ -26,14 +27,20 @@ export const SortableItem = (props: SortableItemProps) => {
   };
 
   return (
-    <div
+    <Box
       ref={setNodeRef}
       style={style}
       data-dragging={isDragging}
       {...attributes}
       {...listeners}
+      sx={{
+        backgroundColor: 'white',
+        borderRadius: '6px',
+        padding: '8px 16px',
+        border: '1px solid #ddd',
+      }}
     >
       {props.children}
-    </div>
+    </Box>
   );
 }
