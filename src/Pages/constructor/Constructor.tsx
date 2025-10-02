@@ -1,5 +1,4 @@
-import { styled } from "@mui/system";
-import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
+import { DndContext, DragOverlay, pointerWithin, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {Box, Typography} from "@mui/material";
 import { useState } from "react";
@@ -8,25 +7,13 @@ import { SortableItem } from "./SortableItem.tsx";
 import {FieldsList} from "./FieldsList.tsx";
 import { FieldData, getFieldByType } from "./utils/fieldRenderer.tsx";
 import { fieldTypes } from "../sc/constants.ts";
-
-const FormContainerStyled = styled('div', {
-  name: 'FormContainerStyled',
-  slot: 'Root',
-})({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  width: '100%',
-  maxWidth: '800px',
-  padding: '16px',
-  borderRadius: '12px',
-  backgroundColor: '#efefef',
-  margin: '0 auto',
-  minHeight: '300px',
-});
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { setFormFields as setFormFieldsAction } from "./constructorSlice";
+import {DraggingWrapper, EmptyDropAria, FormContainerStyled, PlaceholderForInsert} from "./styledWrappers.ts";
 
 export const Constructor = () => {
-  const [formFields, setFormFields] = useState<FieldData[]>([]);
+  const dispatch = useAppDispatch();
+  const formFields = useAppSelector(state => state.constructor.formFields ?? []);
   console.log('formFields', formFields);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedFieldType, setDraggedFieldType] = useState<string | null>(null);
@@ -50,51 +37,57 @@ export const Constructor = () => {
     return null;
   };
 
-  const handleDragOver = (event: any) => {
+  const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
 
-    // Показываем плейсхолдер только для новых элементов из списка (начинаются с 'field-')
-    if (!active.id.startsWith('field-') || !over) {
+    // Плейсхолдер только для новых элементов из списка (id начинается с 'field-')
+    if (!active.id.toString().startsWith('field-') || !over) {
       setInsertionIndex(null);
       setLastOverId(null);
       return;
     }
 
-    // Если нет элементов в форме, вставляем в начало
+    // Если форма пустая — вставляем в начало
     if (formFields.length === 0) {
       setInsertionIndex(0);
-      setLastOverId(over.id);
+      setLastOverId(over.id.toString());
       return;
     }
 
-    // Стабилизация: меняем позицию только если over.id действительно изменился
-    if (over.id === lastOverId) {
-      return; // Не обновляем позицию если over тот же
-    }
-
-    setLastOverId(over.id);
-
-    // Если над главным контейнером - вставляем в конец
+    // Если над главным контейнером — вставляем в конец ТОЛЬКО если до этого были над последним item
     if (over.id === 'form-constructor') {
-      setInsertionIndex(formFields.length);
+      const lastId = formFields[formFields.length - 1]?.id;
+      // Разрешаем «в конец» только при уходе курсора с последнего элемента вниз
+      if (lastOverId === lastId) {
+        setInsertionIndex(formFields.length);
+      }
+      // Не обновляем lastOverId на контейнер, чтобы сохранить контекст последнего item
       return;
     }
 
-    // Если над конкретным элементом - вставляем перед ним
+    // Стабилизация: не пересчитываем, если over не поменялся
+    if (over.id === lastOverId) return;
+
+    // Если над конкретным элементом — вставляем ПЕРЕД ним
+    setLastOverId(over.id.toString());
+
     const overIndex = formFields.findIndex(field => field.id === over.id);
     if (overIndex !== -1) {
       setInsertionIndex(overIndex);
+    } else {
+      // Фолбэк на случай, если over не совпал ни с одним id (редко)
+      setInsertionIndex(null);
     }
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     let addedFromPalette = false;
 
     if (!over) {
       // If dragging existing field from form constructor and dropping outside, delete it
-      if (!active.id.startsWith('field-')) {
-        setFormFields(prev => removeFieldById(prev, active.id));
+      if (!active.id.toString().startsWith('field-')) {
+        dispatch(setFormFieldsAction(removeFieldById(formFields, active.id.toString())));
       }
       setActiveId(null);
       setDraggedFieldType(null);
@@ -105,8 +98,8 @@ export const Constructor = () => {
     }
 
     // If dragging from field list (adding new field)
-    if (active.id.startsWith('field-')) {
-      const fieldType = active.id.replace('field-', '');
+    if (active.id.toString().startsWith('field-')) {
+      const fieldType = active.id.toString().replace('field-', '');
 
       if (fieldTypes.includes(fieldType)) {
         const newField: FieldData = {
@@ -117,27 +110,25 @@ export const Constructor = () => {
 
         if (over.id === 'form-constructor') {
           // Add to the end of the form
-          setFormFields(prev => [...prev, newField]);
+          dispatch(setFormFieldsAction([...(formFields || []), newField]));
           addedFromPalette = true;
         } else if (typeof over.id === 'string' && over.id.endsWith('-content')) {
           // Handle dropping into nested containers
           const containerId = over.id.replace('-content', '');
-          setFormFields(prev => addFieldToContainer(prev, containerId, newField));
+          dispatch(setFormFieldsAction(addFieldToContainer(formFields, containerId, newField)));
           addedFromPalette = true;
         } else {
           // Use insertionIndex for precise positioning
           if (insertionIndex !== null) {
-            setFormFields(prev => {
-              const newFields = [...prev];
-              newFields.splice(insertionIndex, 0, newField);
-              return newFields;
-            });
+            const newFields = [...(formFields || [])];
+            newFields.splice(insertionIndex, 0, newField);
+            dispatch(setFormFieldsAction(newFields));
             addedFromPalette = true;
           } else {
             // Fallback: Handle dropping near existing fields
-            const targetPath = findFieldPath(formFields, over.id);
+            const targetPath = findFieldPath(formFields, over.id.toString());
             if (targetPath) {
-              setFormFields(prev => addFieldToPath(prev, targetPath, newField));
+              dispatch(setFormFieldsAction(addFieldToPath(formFields, targetPath, newField)));
               addedFromPalette = true;
             }
           }
@@ -147,7 +138,7 @@ export const Constructor = () => {
       // Handle reordering/moving existing fields
       if (typeof over.id === 'string' && over.id.endsWith('-content')) {
         const containerId = over.id.replace('-content', '');
-        setFormFields(prev => moveFieldToContainer(prev, active.id, containerId));
+        dispatch(setFormFieldsAction(moveFieldToContainer(formFields, active.id.toString(), containerId)));
       } else if (active.id !== over.id) {
         // Check if it's a simple top-level reorder
         const activeIndex = formFields.findIndex(field => field.id === active.id);
@@ -155,10 +146,10 @@ export const Constructor = () => {
 
         if (activeIndex !== -1 && overIndex !== -1) {
           // Both are top-level fields
-          setFormFields(prev => arrayMove(prev, activeIndex, overIndex));
+          dispatch(setFormFieldsAction(arrayMove(formFields, activeIndex, overIndex)));
         } else {
           // Handle complex hierarchy movement
-          setFormFields(prev => moveFieldWithinHierarchy(prev, active.id, over.id));
+          dispatch(setFormFieldsAction(moveFieldWithinHierarchy(formFields, active.id.toString(), over.id.toString())));
         }
       }
     }
@@ -175,18 +166,18 @@ export const Constructor = () => {
     setLastOverId(null);
   };
 
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id.toString());
     // Reset drop animation control at the start of each drag
     setDisableDropAnimation(false);
 
-    if (event.active.id.startsWith('field-')) {
+    if (event.active.id.toString().startsWith('field-')) {
       // Dragging from field list
-      setDraggedFieldType(event.active.id.replace('field-', ''));
+      setDraggedFieldType(event.active.id.toString().replace('field-', ''));
       setActiveField(null);
     } else {
       // Dragging existing field in form
-      const field = findFieldById(formFields, event.active.id);
+      const field = findFieldById(formFields, event.active.id.toString());
       setActiveField(field);
       setDraggedFieldType(field?.type || null);
     }
@@ -241,19 +232,17 @@ export const Constructor = () => {
     return fields.map(updateField);
   };
 
-  const removeFieldById = (fields: FieldData[], fieldId: string): FieldData[] => {
-    return fields.filter(field => {
-      if (field.id === fieldId) {
-        return false;
-      }
-
+  const removeFieldById = (fields: FieldData[], fieldId: string): FieldData[] =>
+    fields.reduce<FieldData[]>((acc, field) => {
+      if (field.id === fieldId) return acc;
       if (field.children) {
-        field.children = removeFieldById(field.children, fieldId);
+        const nextChildren = removeFieldById(field.children, fieldId);
+        acc.push(nextChildren === field.children ? field : { ...field, children: nextChildren });
+      } else {
+        acc.push(field);
       }
-
-      return true;
-    });
-  };
+      return acc;
+    }, []);
 
   const moveFieldWithinHierarchy = (fields: FieldData[], activeId: string, overId: string): FieldData[] => {
     const findFieldAndParent = (fields: FieldData[], targetId: string, parent: FieldData | null = null): { field: FieldData; parent: FieldData | null; index: number } | null => {
@@ -309,9 +298,9 @@ export const Constructor = () => {
         .map(node => {
           if (node.id === activeId) {
             removed = node;
-            return null as any;
+            return null;
           }
-          if (node.children && node.children.length > 0) {
+          if (node.children && node.children?.length > 0) {
             const res = removeAndGet(node.children);
             if (res.removed) removed = res.removed;
             return { ...node, children: res.updated };
@@ -353,51 +342,23 @@ export const Constructor = () => {
             minHeight='600px'
           >
             {formFields.length === 0 ? (
-              <Box sx={{
-                textAlign: 'center',
-                color: 'text.secondary',
-                fontSize: '1.1rem',
-                padding: 4,
-              }}>
+              <EmptyDropAria>
                 Drag fields from the list to start building your form
-              </Box>
+              </EmptyDropAria>
             ) : (
-              <SortableContext items={formFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext id='sortable-context' items={formFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                 {formFields.map((field, index) => (
-                  <div key={field.id}>
-                    {/* Плейсхолдер вставки перед элементом */}
+                  <div key={field.id} id={`field-wrapper-${field.id}`} >
                     {insertionIndex === index && (
-                      <Box sx={{
-                        height: '4px',
-                        backgroundColor: '#2196f3',
-                        borderRadius: '2px',
-                        margin: '4px 0',
-                        opacity: 0.8,
-                        boxShadow: '0 0 8px rgba(33, 150, 243, 0.3)'
-                      }} />
+                      <PlaceholderForInsert />
                     )}
                     <SortableItem id={field.id}>
-                      <Box sx={{
-                        backgroundColor: 'white',
-                        borderRadius: '6px',
-                        padding: '8px 16px',
-                        border: '1px solid #ddd'
-                      }}>
-                        {getFieldByType(field.type, field)}
-                      </Box>
+                      {getFieldByType(field.type, field)}
                     </SortableItem>
                   </div>
                 ))}
-                {/* Плейсхолдер вставки в конец списка */}
                 {insertionIndex === formFields.length && (
-                  <Box sx={{
-                    height: '4px',
-                    backgroundColor: '#2196f3',
-                    borderRadius: '2px',
-                    margin: '4px 0',
-                    opacity: 0.8,
-                    boxShadow: '0 0 8px rgba(33, 150, 243, 0.3)'
-                  }} />
+                  <PlaceholderForInsert />
                 )}
               </SortableContext>
             )}
@@ -406,33 +367,15 @@ export const Constructor = () => {
 
         <DragOverlay dropAnimation={disableDropAnimation ? null : undefined}>
           {activeId ? (
-            <Box sx={{
-              backgroundColor: 'white',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              border: '2px solid #2196f3',
-              boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
-              opacity: 0.95,
-              pointerEvents: 'none',
-              zIndex: 1000,
-              minHeight: 'auto',
-              // Если перетаскиваем новый элемент из списка - компактная ширина
-              // Если перетаскиваем существующий элемент - полная ширина формы
-              ...(activeField ? {
-                maxWidth: '768px',
-                width: '768px'
-              } : {
-                maxWidth: '300px',
-                width: 'fit-content'
-              })
-            }}>
-              {activeField && activeField.type ?
-                getFieldByType(activeField.type, activeField) :
-                (draggedFieldType ? getFieldByType(draggedFieldType) :
-                  <Box>Dragging...</Box>
+            <DraggingWrapper activeField={Boolean(activeField)}>
+              {activeField && activeField.type
+                ? getFieldByType(activeField.type, activeField)
+                : (draggedFieldType
+                    ? getFieldByType(draggedFieldType)
+                    : <Box>Dragging...</Box>
                 )
               }
-            </Box>
+            </DraggingWrapper>
           ) : null}
         </DragOverlay>
       </Box>

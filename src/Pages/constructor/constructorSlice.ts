@@ -13,9 +13,9 @@ const constructorSlice = createSlice({
   name: 'constructor',
   initialState,
   reducers: {
-    setFormFields(state, action: PayloadAction<FieldData[] | undefined | null>) {
-      // Ensure we never set an undefined value that could break Immer expectations
-      state.formFields = Array.isArray(action.payload) ? action.payload : [];
+    setFormFields(state, action: PayloadAction<FieldData[] | null | undefined>) {
+      const next = Array.isArray(action.payload) ? action.payload : [];
+      return { ...state, formFields: next }; // ✅ Явно возвращаем новое состояние
     },
   },
 });
