@@ -89,3 +89,13 @@ export const DroppableStyled = styled(Box, {
   backgroundColor: theme.palette.grey[100],
   minHeight: '60px'
 }));
+
+export const FormHeader = styled('div', {
+  name: 'FormHeader',
+  slot: 'Root',
+})({
+  display: 'flex',
+
+  // fontSize: '1.1rem',
+  // padding: 4,
+});

@@ -38,6 +38,7 @@ export const SortableItem = (props: SortableItemProps) => {
         borderRadius: '6px',
         padding: '8px 16px',
         border: '1px solid #ddd',
+        width: '100%',
       }}
     >
       {props.children}

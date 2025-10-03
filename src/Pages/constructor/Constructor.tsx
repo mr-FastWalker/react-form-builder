@@ -1,7 +1,7 @@
 import { DndContext, DragOverlay, pointerWithin, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import {Box, Typography} from "@mui/material";
-import { useState } from "react";
+import {Box, Typography, Button, Stack} from "@mui/material";
+import { useState, useRef, ChangeEvent } from "react";
 import { Droppable } from "./Droppable.tsx";
 import { SortableItem } from "./SortableItem.tsx";
 import {FieldsList} from "./FieldsList.tsx";
@@ -9,7 +9,14 @@ import { FieldData, getFieldByType } from "./utils/fieldRenderer.tsx";
 import { fieldTypes } from "../sc/constants.ts";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { setFormFields as setFormFieldsAction } from "./constructorSlice";
-import {DraggingWrapper, EmptyDropAria, FormContainerStyled, PlaceholderForInsert} from "./styledWrappers.ts";
+import {
+  DraggingWrapper,
+  EmptyDropAria,
+  FormContainerStyled,
+  FormHeader,
+  PlaceholderForInsert
+} from "./styledWrappers.ts";
+import { v4 as uuidv4 } from "uuid";
 
 export const Constructor = () => {
   const dispatch = useAppDispatch();
@@ -21,6 +28,9 @@ export const Constructor = () => {
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
   const [lastOverId, setLastOverId] = useState<string | null>(null);
   const [disableDropAnimation, setDisableDropAnimation] = useState<boolean>(false);
+
+  // File save/load
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateId = () => `node-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -105,6 +115,7 @@ export const Constructor = () => {
         const newField: FieldData = {
           id: generateId(),
           type: fieldType,
+          recordId: uuidv4(),
           children: ['group', 'columnContainer', 'rowContainer'].includes(fieldType) ? [] : undefined
         };
 
@@ -328,13 +339,67 @@ export const Constructor = () => {
     return updated.map(appendToContainer);
   };
 
+  const handleSaveToFile = () => {
+    const data = JSON.stringify(formFields ?? [], null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `formFields-${timestamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadFromFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result as string;
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          dispatch(setFormFieldsAction(parsed));
+        } else {
+          alert('Invalid file format. Expected a JSON array of fields.');
+        }
+      } catch (err) {
+        console.error('Failed to parse JSON file', err);
+        alert('Failed to parse JSON file.');
+      } finally {
+        // reset the input so the same file can be picked again
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <DndContext onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
       <Box sx={{position: 'relative'}}>
         <FieldsList/>
 
         <FormContainerStyled>
-          <Typography variant="h5">Form Constructor</Typography>
+          <FormHeader>
+            <Typography variant="h5">Form Constructor</Typography>
+
+            <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+              <Button variant="contained" size='small' onClick={handleSaveToFile} disabled={!formFields || formFields.length === 0}>Save to file</Button>
+              <Button variant="outlined" size='small' onClick={handleLoadFromFileClick}>Load from file</Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            </Stack>
+          </FormHeader>
 
           <Droppable
             id='form-constructor'

@@ -10,14 +10,15 @@ import {
   TextareaField,
   DatePickerField
 } from "../../sc/fields";
-import { Stack, Typography, Box } from "@mui/material";
-import { Droppable } from "../Droppable";
-import { SortableItem } from "../SortableItem";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {Stack, Typography, Box} from "@mui/material";
+import {Droppable} from "../Droppable";
+import {SortableItem} from "../SortableItem";
+import {SortableContext, verticalListSortingStrategy} from "@dnd-kit/sortable";
 
 export interface FieldData {
   id: string;
   type: string;
+  recordId?: string;
   children?: FieldData[];
 }
 
@@ -57,7 +58,7 @@ const renderNestedFields = (children: FieldData[]) => {
 export const getFieldByType = (type: string, fieldData?: FieldData) => {
   switch (type) {
     case 'text':
-      return <InputField />
+      return <InputField/>
     case 'group':
       return (
         <GroupField>
@@ -69,25 +70,25 @@ export const getFieldByType = (type: string, fieldData?: FieldData) => {
         </GroupField>
       )
     case 'selector':
-      return <SelectField />
+      return <SelectField/>
     case 'checkbox':
-      return <CheckBoxField />
+      return <CheckBoxField/>
     case 'radio':
-      return <RadioField />
+      return <RadioField/>
     case 'title':
-      return <TitleField />
+      return <TitleField/>
     case 'subtitle':
-      return <SubtitleField />
+      return <SubtitleField/>
     case 'textarea':
-      return <TextareaField />
+      return <TextareaField/>
     case 'description':
-      return <DescriptionField />
+      return <DescriptionField/>
     case 'list':
       return <div>list</div>
     case 'complex':
       return <div>complex</div>
     case 'datetime':
-      return <DatePickerField />
+      return <DatePickerField/>
     case 'columnContainer':
       return (
         <Stack direction="column" gap={1} sx={{
@@ -109,58 +110,43 @@ export const getFieldByType = (type: string, fieldData?: FieldData) => {
       )
     case 'rowContainer':
       return (
-        <Stack direction="row" gap={1} sx={{
-          border: '2px dashed #ccc',
-          borderRadius: '8px',
-          padding: 2,
-          minHeight: 120,
-          backgroundColor: '#fafafa',
-          position: 'relative'
-        }}>
-          <Typography variant="caption" color="text.secondary" sx={{
-            position: 'absolute',
-            top: 4,
-            left: 8
-          }}>
-            Row Container
-          </Typography>
+        <Box
+          data-testid="rowContainer"
+          sx={{
+            border: '1px dashed #ccc',
+            borderRadius: '8px',
+            padding: 0,
+            minHeight: '32px',
+            backgroundColor: '#fafafa',
+          }}
+        >
           {fieldData && (
-            <Box sx={{ display: 'flex', width: '100%', gap: 1, mt: 2 }}>
-              <Droppable id={`${fieldData.id}-content`}>
-                <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, width: '100%' }}>
-                  {fieldData.children && fieldData.children.length > 0 ? (
-                    <SortableContext items={fieldData.children.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                      {fieldData.children.map((child) => (
-                        <SortableItem key={child.id} id={child.id}>
-                          <Box sx={{
-                            backgroundColor: 'white',
-                            borderRadius: '6px',
-                            padding: '8px 16px',
-                            border: '1px solid #ddd',
-                            flex: 1,
-                            minWidth: 0
-                          }}>
-                            {getFieldByType(child.type, child)}
-                          </Box>
-                        </SortableItem>
-                      ))}
-                    </SortableContext>
-                  ) : (
-                    <Box sx={{
-                      textAlign: 'center',
-                      color: 'text.secondary',
-                      fontStyle: 'italic',
-                      padding: 2,
-                      width: '100%'
-                    }}>
-                      Drop fields here
-                    </Box>
-                  )}
+            <Droppable
+              id={`${fieldData.id}-content`}
+              sx={{flexDirection: 'row', gap: '8px', padding: '0 0 0 16px', margin: 0}}
+            >
+              {fieldData.children && fieldData.children.length > 0 ? (
+                <SortableContext items={fieldData.children.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                  {fieldData.children.map((child) => (
+                    <SortableItem key={child.id} id={child.id}>
+                      {getFieldByType(child.type, child)}
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+              ) : (
+                <Box sx={{
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  fontStyle: 'italic',
+                  padding: 2,
+                  width: '100%'
+                }}>
+                  Drop fields here
                 </Box>
-              </Droppable>
-            </Box>
+              )}
+            </Droppable>
           )}
-        </Stack>
+        </Box>
       )
     default:
       return <Typography color='error.main'>{`unknown type "${type}"`}</Typography>
